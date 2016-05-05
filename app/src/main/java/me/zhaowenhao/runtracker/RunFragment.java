@@ -125,6 +125,7 @@ public class RunFragment extends Fragment {
 
         int durationSeconds = 0;
         if (mRun != null && mLastLocation != null){
+
             durationSeconds = mRun.getDurationSeconds(mLastLocation.getTime());
             mLatitudeTextView.setText(Double.toString(mLastLocation.getLatitude()));
             mLongitudeTextView.setText(Double.toString(mLastLocation.getLongitude()));
