@@ -87,7 +87,7 @@ public class RunDatabaseHelper extends SQLiteOpenHelper {
                 new String[] {String.valueOf(runId)},
                 null,
                 null,
-                COLUMN_TIMESTAMP + "desc",
+                COLUMN_TIMESTAMP + " desc",
                 "1"
         );
 

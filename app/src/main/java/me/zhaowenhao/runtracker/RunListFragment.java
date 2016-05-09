@@ -4,59 +4,60 @@ import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.os.Bundle;
-import android.util.Log;
+import android.support.v4.app.ListFragment;
+import android.support.v4.app.LoaderManager.LoaderCallbacks;
+import android.support.v4.content.Loader;
+import android.support.v4.widget.CursorAdapter;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.CursorAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
 
-/**
- * Created by zhaowenhao on 16/5/8.
- */
-public class RunListFragment extends android.support.v4.app.ListFragment {
-    private RunDatabaseHelper.RunCursor mRunCursor;
+import me.zhaowenhao.runtracker.RunDatabaseHelper.RunCursor;
+
+public class RunListFragment extends ListFragment implements LoaderCallbacks<Cursor> {
     private static final int REQUEST_NEW_RUN = 0;
-    private static final String TAG = "RunListFragment";
 
     @Override
-    public void onCreate(Bundle savedInstanceState){
+    public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setHasOptionsMenu(true);
+        // initialize the loader to load the list of runs
+        getLoaderManager().initLoader(0, null, this);
+    }
 
-        mRunCursor = RunManager.get(getActivity()).queryRuns();
+    @Override
+    public Loader<Cursor> onCreateLoader(int id, Bundle args) {
+        // we only ever load the runs, so assume this is the case
+        return new RunListCursorLoader(getActivity());
+    }
 
-        RunCursorAdapter adapter = new RunCursorAdapter(getActivity(), mRunCursor);
+    @Override
+    public void onLoadFinished(Loader<Cursor> loader, Cursor cursor) {
+        // create an adapter to point at this cursor
+        RunCursorAdapter adapter = new RunCursorAdapter(getActivity(), (RunCursor)cursor);
         setListAdapter(adapter);
     }
 
     @Override
-    public void onDestroy(){
-        mRunCursor.close();
-        super.onDestroy();
+    public void onLoaderReset(Loader<Cursor> loader) {
+        // stop using the cursor (via the adapter)
+        setListAdapter(null);
     }
 
     @Override
-    public void onListItemClick(ListView l, View v, int position, long id){
-        Intent i = new Intent(getActivity(), RunActivity.class);
-        i.putExtra(RunActivity.EXTRA_RUN_ID, id);
-        startActivity(i);
-    }
-
-    @Override
-    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater){
+    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
         super.onCreateOptionsMenu(menu, inflater);
-        Log.d(TAG, "create option menu");
         inflater.inflate(R.menu.run_list_options, menu);
     }
 
     @Override
-    public boolean onOptionsItemSelected(MenuItem item){
-        switch (item.getItemId()){
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
             case R.id.menu_item_new_run:
                 Intent i = new Intent(getActivity(), RunActivity.class);
                 startActivityForResult(i, REQUEST_NEW_RUN);
@@ -67,38 +68,64 @@ public class RunListFragment extends android.support.v4.app.ListFragment {
     }
 
     @Override
-    public void onActivityResult(int requestCode, int resultCode, Intent data){
-        if (REQUEST_NEW_RUN == requestCode){
-            mRunCursor.requery();
-            ((RunCursorAdapter) getListAdapter()).notifyDataSetChanged();
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (REQUEST_NEW_RUN == requestCode) {
+            // restart the loader to get any new run available
+            getLoaderManager().restartLoader(0, null, this);
         }
     }
 
-    private static class RunCursorAdapter extends CursorAdapter{
-        private RunDatabaseHelper.RunCursor mRunCursor;
+    @Override
+    public void onListItemClick(ListView l, View v, int position, long id) {
+        // the id argument will be the Run ID; CursorAdapter gives us this for free
+        Intent i = new Intent(getActivity(), RunActivity.class);
+        i.putExtra(RunActivity.EXTRA_RUN_ID, id);
+        startActivity(i);
+    }
 
-        private RunCursorAdapter(Context context, RunDatabaseHelper.RunCursor cursor){
+    private static class RunListCursorLoader extends SQLiteCursorLoader {
+
+        public RunListCursorLoader(Context context) {
+            super(context);
+        }
+
+        @Override
+        protected Cursor loadCursor() {
+            // query the list of runs
+            return RunManager.get(getContext()).queryRuns();
+        }
+
+    }
+
+    private static class RunCursorAdapter extends CursorAdapter {
+
+        private RunCursor mRunCursor;
+
+        public RunCursorAdapter(Context context, RunCursor cursor) {
             super(context, cursor, 0);
             mRunCursor = cursor;
         }
 
         @Override
-        public View newView(Context context, Cursor cursor, ViewGroup parent){
-            LayoutInflater inflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        public View newView(Context context, Cursor cursor, ViewGroup parent) {
+            // use a layout inflater to get a row view
+            LayoutInflater inflater =
+                    (LayoutInflater)context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
             return inflater.inflate(android.R.layout.simple_list_item_1, parent, false);
         }
 
         @Override
-        public void bindView(View view, Context context, Cursor cursor){
+        public void bindView(View view, Context context, Cursor cursor) {
+            // get the run for the current row
             Run run = mRunCursor.getRun();
 
-            TextView startDateTextView = (TextView) view;
-            String celltxt = context.getString(R.string.cell_txt, run.getStartDate());
-            startDateTextView.setText(celltxt);
+            // set up the start date text view
+            TextView startDateTextView = (TextView)view;
+            startDateTextView.setText("Run at " + run.getStartDate());
         }
-
 
     }
 }
+
 
 
